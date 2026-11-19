@@ -55,5 +55,7 @@ def create_app():
             writer.writerow([result["manifest"]["run_id"],row["line"],row["key"],row["code"],json.dumps(row,ensure_ascii=False)])
         return Response("\ufeff"+stream.getvalue(),content_type="text/csv; charset=utf-8",headers={"Content-Disposition":"attachment; filename=evidence.csv"})
     for n,name in enumerate(STAGES,1): app.register_blueprint(import_module(f"app.modules.m{n}_{name}.handler").bp)
+    from app.lineage.handler import bp as lineage_bp
+    app.register_blueprint(lineage_bp)
     return app
 app=create_app()

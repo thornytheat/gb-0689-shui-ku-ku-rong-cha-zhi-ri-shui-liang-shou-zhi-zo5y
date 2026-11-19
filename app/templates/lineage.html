@@ -1,0 +1,39 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>青岚水账 · 站码沿革核定</title><link rel="stylesheet" href="/static/theme.css"><link rel="stylesheet" href="/static/layout.css"><link rel="stylesheet" href="/static/hydrology.css"></head><body><div class="app"><aside class="rail"><a class="brand" href="/">青岚水账<span>RESERVOIR / 2026</span></a><div class="station">青岚库 · 站码沿革</div><nav><a href="/m/1">测站采信<small>01</small></a><a href="/m/2">曲线校核<small>02</small></a><a href="/m/3">流量积分<small>03</small></a><a href="/m/4">库容换算<small>04</small></a><a href="/m/5">日收支<small>05</small></a><a href="/m/6">异常复核<small>06</small></a><a href="/m/7">重算留痕<small>07</small></a><a class="active" href="/lineage">站码沿革<small>LC</small></a></nav><div class="rail-bottom"><div class="wave"></div><span id="rule-ver"></span></div></aside><div class="work"><header class="topbar"><h1>站码沿革核定</h1><span>旧码/新码并行两班 · 一条日账</span></header><main class="content">
+<section class="panel"><div class="panel__head"><h2>换号核定输入</h2><span>CSV</span></div>
+<form id="lineage-form" class="lineage-form">
+<label>观测 CSV（含 code 原始站码列）<input type="file" name="obs_file" accept=".csv"></label>
+<label>迁移单 CSV（deactivate_at 留空=停用时刻未登记）<input type="file" name="mig_file" accept=".csv"></label>
+<div class="parameters"><label>最大缺口 h<input name="max_gap_hours" value="2"></label></div>
+<button class="btn primary" type="submit">核定沿革并续算日账</button>
+</form>
+<p class="hint">也可用 JSON POST <code>/api/lineage</code>；挂起后补登停用时刻，凭指纹调用 <code>/api/lineage/resume/&lt;fingerprint&gt;</code> 从已确认段续算。</p>
+</section>
+<div id="message" aria-live="polite"></div>
+<div id="result"></div>
+</main><footer class="statusbar"><span>日界 +08:00</span><span>原始站码 raw_code 全程留痕</span><span id="fp"></span></footer></div></div>
+<script>
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function table(rows,cols){if(!rows||!rows.length)return '<p class="hint">无记录。</p>';
+ return '<div class="scroll"><table class="ledger"><thead><tr>'+cols.map(c=>`<th>${c[1]}</th>`).join('')+'</tr></thead><tbody>'+
+ rows.map(r=>'<tr>'+cols.map(c=>`<td>${esc(r[c[0]])}</td>`).join('')+'</tr>').join('')+'</tbody></table></div>';}
+function render(d){document.getElementById('rule-ver').textContent=d.rules||'';
+ document.getElementById('fp').textContent='指纹 '+(d.fingerprint||'');
+ const badge=d.adjudicated?'<span class="ok">已核定</span>':'<span class="warn">挂起待人工裁定</span>';
+ let html=`<section class="panel"><div class="panel__head"><h2>核定结论 ${badge}</h2><span>版本 V${d.version??0} · ${esc(d.status||'')}</span></div>
+ <div class="kpis"><div class="kpi"><small>观测输入</small><b>${d.input_count}</b><i>行</i></div><div class="kpi"><small>采信(去重)</small><b>${d.canonical_count}</b><i>行</i></div><div class="kpi"><small>并行挂起</small><b>${d.suspended_count}</b><i>行</i></div><div class="kpi"><small>沿革段</small><b>${d.segments.length}</b><i>段</i></div><div class="kpi"><small>日账</small><b>${(d.budgets||[]).length}</b><i>条</i></div></div></section>`;
+ html+='<section class="panel"><div class="panel__head"><h2>沿革段（每段采用站码）</h2></div>'+
+  table(d.segments,[['site','逻辑站'],['kind_label','段类型'],['adopted_code','采用站码'],['start','开始 UTC'],['end','结束 UTC'],['note','说明']])+'</section>';
+ html+='<section class="panel"><div class="panel__head"><h2>并行时段裁定</h2></div>'+
+  table(d.parallel_windows,[['site','逻辑站'],['old_code','旧码'],['new_code','新码'],['start','开始 UTC'],['end','结束 UTC'],['state','裁定状态'],['reason','依据']])+'</section>';
+ html+='<section class="panel"><div class="panel__head"><h2>连成一条的日账</h2></div>'+
+  table(d.budgets,[['station','逻辑站'],['date','日期 +08'],['in_m3','入库 m³'],['out_m3','出库 m³'],['storage_change','库容变化 m³'],['residual','收支差 m³'],['state','状态']])+'</section>';
+ html+='<section class="panel"><div class="panel__head"><h2>挂起观测（原始站码可追溯）</h2></div>'+
+  table(d.suspended,[['_line','原始行号'],['raw_code','原始站码'],['station_code','采用站码'],['time','观测 UTC'],['suspend_reason','挂起原因']])+'</section>';
+ if(d.fingerprint)html+=`<p><a class="btn" href="/api/lineage/${d.fingerprint}/evidence.csv">导出沿革证据 CSV</a></p>`;
+ document.getElementById('result').innerHTML=html;}
+document.getElementById('lineage-form').addEventListener('submit',async e=>{e.preventDefault();
+ const fd=new FormData(e.target);const msg=document.getElementById('message');msg.textContent='核定中…';
+ try{const r=await fetch('/api/lineage',{method:'POST',body:fd});const j=await r.json();
+  if(!r.ok){msg.textContent='核定失败：'+(j.message||r.status);return;}msg.textContent='';render(j);}
+ catch(err){msg.textContent='请求失败：'+err;}});
+</script></body></html>

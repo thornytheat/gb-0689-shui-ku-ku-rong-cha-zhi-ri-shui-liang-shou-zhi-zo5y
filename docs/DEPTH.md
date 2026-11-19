@@ -15,6 +15,18 @@
 | M5 日收支 | 跨午夜切分日水量账 | `/api/m5` | `app/modules/m5_budget/rules.py` `app/modules/m5_budget/service.py` | `tests/test_m5_budget.py` |
 | M6 异常复核 | 按缺测优先裁决超差 | `/api/m6` | `app/modules/m6_review/rules.py` `app/modules/m6_review/service.py` | `tests/test_m6_review.py` |
 | M7 重算留痕 | 核对总积分与重算水位 | `/api/m7` | `app/modules/m7_trace/rules.py` `app/modules/m7_trace/service.py` | `tests/test_m7_trace.py` |
+| LC 站码沿革 | 换号并行核定与日账续算 | `/api/lineage` `/lineage` | `app/lineage/rules.py` `app/lineage/service.py` `app/lineage/store.py` | `tests/test_lineage_rules.py` `tests/test_lineage_store.py` |
+
+## 站码沿革陷阱（LC）
+
+| TRAP | 现象 | 朴素实现会怎样 | 本项目处理 | 处理位置 | 测试 |
+|---|---|---|---|---|---|
+| LC-01 | 旧码新码并行两班 | 全按对照表合并，并行时段算两遍 | 同刻逐刻去重，停用前采旧码，去重留痕 raw_code | `app/lineage/rules.py::canonical_observations` | `tests/test_lineage_rules.py::test_decided_window_dedupes_to_one_series` |
+| LC-02 | 迁移单未写旧码停用时刻 | 卡死在新码启用点，换号前后断成缺测 | 并行窗口挂起待裁定，两侧确认段照算并标缺测，不硬切 | `app/lineage/rules.py::build_segments` | `tests/test_lineage_rules.py::test_pending_window_is_blocked_when_deactivate_missing` |
+| LC-03 | 同刻新旧水文值矛盾 | 静默采信其一 | 整窗挂起，两码观测全部 suspended 不进日账 | `app/lineage/rules.py::_adjudicate_parallel` | `tests/test_lineage_rules.py::test_conflicting_parallel_values_block_window` |
+| LC-04 | 同一换号反复重跑 | 每次新增重复日账 | 指纹幂等+日账 (site,date) 唯一键，复用版本 | `app/lineage/store.py` | `tests/test_lineage_store.py::test_same_renumber_rerun_is_idempotent_no_duplicate` |
+| LC-05 | 核定失败覆盖已确认沿革 | 已确认段被回退 | 失败存版本0挂起，旧版保留，从水位线续算不回退 | `app/lineage/store.py::resume` | `tests/test_lineage_store.py::test_resume_from_pending_promotes_version_and_writes_ledger` |
+| LC-06 | 跨换号串号续算 | 把别的站数据并进当前日账 | 指纹校验不一致返回 FINGERPRINT 422 | `app/lineage/store.py::resume` | `tests/test_lineage_store.py::test_resume_rejects_cross_fingerprint` |
 
 ## 陷阱登记
 

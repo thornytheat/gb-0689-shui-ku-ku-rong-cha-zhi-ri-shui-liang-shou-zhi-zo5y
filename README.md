@@ -23,6 +23,7 @@ docker compose config --quiet
 - M5 日收支：跨午夜切分日水量账，入口 `/m/5`、`GET/POST /api/m5`。
 - M6 异常复核：按缺测优先裁决超差，入口 `/m/6`、`GET/POST /api/m6`。
 - M7 重算留痕：核对总积分与重算水位，入口 `/m/7`、`GET/POST /api/m7`。
+- LC 站码沿革：换号新旧码并行核定，并行段去重/挂起并把日账按逻辑站连成一条，入口 `/lineage`、`POST /api/lineage`、`POST /api/lineage/resume/<fingerprint>`。
 
 ## 演示与复核
 
